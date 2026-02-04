@@ -1,16 +1,17 @@
-// my-electron-app/src/index.ts
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, ipcMain } from "electron";
 import isDev from "electron-is-dev";
 import squirrelStartup from "electron-squirrel-startup";
 
 declare const MAIN_WINDOW_WEBPACK_ENTRY: string;
 declare const MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
 
-// Required for Squirrel.Windows to create/remove Start Menu + Desktop shortcuts on install/uninstall.
-// If we don't quit here, installation can complete without shortcuts being created.
 if (squirrelStartup) {
   app.quit();
 }
+
+ipcMain.handle("ping", async (_event, name: string) => {
+  return `Hello ${name}! (from Main)`;
+});
 
 let win: BrowserWindow | null = null;
 
@@ -25,8 +26,6 @@ function createWindow() {
     },
   });
 
-  // Loads the renderer entry configured in `forge.config.ts`:
-  // html: `./src/index.html`, js: `./src/renderer.ts`
   win.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
 
   if (isDev) {
