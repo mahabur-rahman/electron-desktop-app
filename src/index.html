@@ -2,15 +2,53 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <title>Open File Demo</title>
+    <title>IPC + Security + Persistence Demo</title>
   </head>
   <body>
-    <h1>Open File Demo</h1>
+    <h1>IPC + Security + Persistence Demo</h1>
+
     <section>
-      <h2>Open Text File (invoke/handle)</h2>
-      <button id="openFileBtn" type="button">Open .txt/.md/.log</button>
-      <p id="filePath">No file selected</p>
-      <pre id="fileContent"></pre>
+      <h2>External Link (Safe)</h2>
+      <p>
+        <a
+          id="electronLink"
+          href="https://www.electronjs.org"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Open electronjs.org (should open in browser)
+        </a>
+      </p>
+
+      <div>
+        <input
+          id="urlInput"
+          type="text"
+          value="https://www.electronjs.org"
+          style="width: 360px"
+        />
+        <button id="openUrlBtn" type="button">Open URL in browser</button>
+      </div>
+
+      <p id="openUrlResult"></p>
+    </section>
+
+    <section>
+      <h2>Notes (Persistence in userData)</h2>
+      <textarea
+        id="noteText"
+        rows="6"
+        style="width: 520px"
+        placeholder="Write something..."
+      ></textarea>
+
+      <div>
+        <button id="saveNoteBtn" type="button">Save note</button>
+        <button id="loadNoteBtn" type="button">Load note</button>
+        <button id="clearNoteBtn" type="button">Clear</button>
+      </div>
+
+      <p id="noteStatus"></p>
     </section>
   </body>
 </html>

@@ -1,16 +1,20 @@
 import { contextBridge, ipcRenderer } from "electron";
 
-export type OpenTextFileResult = {
-  path: string;
-  content: string;
-} | null;
+export type NoteData = {
+  text: string;
+  updatedAtIso: string;
+};
 
 export type PreloadApi = {
-  openTextFile: () => Promise<OpenTextFileResult>;
+  openExternal: (url: string) => Promise<boolean>;
+  saveNote: (text: string) => Promise<boolean>;
+  loadNote: () => Promise<NoteData | null>;
 };
 
 const api: PreloadApi = {
-  openTextFile: () => ipcRenderer.invoke("file:openText"),
+  openExternal: (url) => ipcRenderer.invoke("shell:openExternal", url),
+  saveNote: (text) => ipcRenderer.invoke("note:save", text),
+  loadNote: () => ipcRenderer.invoke("note:load"),
 };
 
 contextBridge.exposeInMainWorld("api", api);

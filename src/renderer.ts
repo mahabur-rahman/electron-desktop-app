@@ -1,12 +1,14 @@
 import "./index.css";
 
-type OpenTextFileResult = {
-  path: string;
-  content: string;
-} | null;
+type NoteData = {
+  text: string;
+  updatedAtIso: string;
+};
 
 type PreloadApi = {
-  openTextFile: () => Promise<OpenTextFileResult>;
+  openExternal: (url: string) => Promise<boolean>;
+  saveNote: (text: string) => Promise<boolean>;
+  loadNote: () => Promise<NoteData | null>;
 };
 
 declare global {
@@ -16,24 +18,65 @@ declare global {
 }
 
 window.addEventListener("DOMContentLoaded", () => {
-  const openFileBtn = document.getElementById(
-    "openFileBtn",
+  const urlInput = document.getElementById("urlInput") as HTMLInputElement | null;
+  const openUrlBtn = document.getElementById("openUrlBtn") as HTMLButtonElement | null;
+  const openUrlResult = document.getElementById(
+    "openUrlResult",
+  ) as HTMLParagraphElement | null;
+
+  const noteText = document.getElementById("noteText") as HTMLTextAreaElement | null;
+  const saveNoteBtn = document.getElementById(
+    "saveNoteBtn",
   ) as HTMLButtonElement | null;
-  const filePath = document.getElementById("filePath") as HTMLParagraphElement | null;
-  const fileContent = document.getElementById("fileContent") as HTMLPreElement | null;
+  const loadNoteBtn = document.getElementById(
+    "loadNoteBtn",
+  ) as HTMLButtonElement | null;
+  const clearNoteBtn = document.getElementById(
+    "clearNoteBtn",
+  ) as HTMLButtonElement | null;
+  const noteStatus = document.getElementById("noteStatus") as HTMLParagraphElement | null;
 
-  if (!openFileBtn || !filePath || !fileContent) return;
+  if (
+    !urlInput ||
+    !openUrlBtn ||
+    !openUrlResult ||
+    !noteText ||
+    !saveNoteBtn ||
+    !loadNoteBtn ||
+    !clearNoteBtn ||
+    !noteStatus
+  ) {
+    return;
+  }
 
-  openFileBtn.addEventListener("click", async () => {
-    const res = await window.api.openTextFile();
+  openUrlBtn.addEventListener("click", async () => {
+    const url = urlInput.value.trim();
+    const ok = await window.api.openExternal(url);
+    openUrlResult.textContent = ok
+      ? "Opened in your default browser."
+      : "Blocked/failed (only http/https allowed).";
+  });
 
-    if (!res) {
-      filePath.textContent = "No file selected";
-      fileContent.textContent = "";
+  saveNoteBtn.addEventListener("click", async () => {
+    noteStatus.textContent = "Saving...";
+    const ok = await window.api.saveNote(noteText.value);
+    noteStatus.textContent = ok ? "Saved." : "Save failed.";
+  });
+
+  loadNoteBtn.addEventListener("click", async () => {
+    noteStatus.textContent = "Loading...";
+    const data = await window.api.loadNote();
+    if (!data) {
+      noteStatus.textContent = "No saved note yet.";
       return;
     }
 
-    filePath.textContent = res.path;
-    fileContent.textContent = res.content;
+    noteText.value = data.text;
+    noteStatus.textContent = `Loaded. Updated: ${data.updatedAtIso}`;
+  });
+
+  clearNoteBtn.addEventListener("click", () => {
+    noteText.value = "";
+    noteStatus.textContent = "Cleared (not saved).";
   });
 });
