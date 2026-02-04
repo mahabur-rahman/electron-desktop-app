@@ -1,9 +1,16 @@
 import { contextBridge, ipcRenderer } from "electron";
 
-contextBridge.exposeInMainWorld("api", {
-  ping: (name: string) => ipcRenderer.invoke("ping", name),
-});
+export type OpenTextFileResult = {
+  path: string;
+  content: string;
+} | null;
 
 export type PreloadApi = {
-  ping: (name: string) => Promise<string>;
+  openTextFile: () => Promise<OpenTextFileResult>;
 };
+
+const api: PreloadApi = {
+  openTextFile: () => ipcRenderer.invoke("file:openText"),
+};
+
+contextBridge.exposeInMainWorld("api", api);

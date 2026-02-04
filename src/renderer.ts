@@ -1,7 +1,12 @@
 import "./index.css";
 
+type OpenTextFileResult = {
+  path: string;
+  content: string;
+} | null;
+
 type PreloadApi = {
-  ping: (name: string) => Promise<string>;
+  openTextFile: () => Promise<OpenTextFileResult>;
 };
 
 declare global {
@@ -11,15 +16,24 @@ declare global {
 }
 
 window.addEventListener("DOMContentLoaded", () => {
-  const btn = document.getElementById("pingBtn") as HTMLButtonElement | null;
-  const result = document.getElementById(
-    "result",
-  ) as HTMLParagraphElement | null;
+  const openFileBtn = document.getElementById(
+    "openFileBtn",
+  ) as HTMLButtonElement | null;
+  const filePath = document.getElementById("filePath") as HTMLParagraphElement | null;
+  const fileContent = document.getElementById("fileContent") as HTMLPreElement | null;
 
-  if (!btn || !result) return;
+  if (!openFileBtn || !filePath || !fileContent) return;
 
-  btn.addEventListener("click", async () => {
-    const msg = await window.api.ping("Bangla User");
-    result.textContent = msg;
+  openFileBtn.addEventListener("click", async () => {
+    const res = await window.api.openTextFile();
+
+    if (!res) {
+      filePath.textContent = "No file selected";
+      fileContent.textContent = "";
+      return;
+    }
+
+    filePath.textContent = res.path;
+    fileContent.textContent = res.content;
   });
 });

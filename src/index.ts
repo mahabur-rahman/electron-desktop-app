@@ -1,4 +1,5 @@
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, dialog, ipcMain } from "electron";
+import { readFile } from "node:fs/promises";
 import isDev from "electron-is-dev";
 import squirrelStartup from "electron-squirrel-startup";
 
@@ -9,8 +10,24 @@ if (squirrelStartup) {
   app.quit();
 }
 
-ipcMain.handle("ping", async (_event, name: string) => {
-  return `Hello ${name}! (from Main)`;
+/**
+ * Concept #2: invoke/handle (request/response)
+ * Renderer -> preload -> ipcRenderer.invoke("file:openText")
+ * Main -> ipcMain.handle("file:openText") -> open dialog -> read file -> return {path, content}
+ */
+ipcMain.handle("file:openText", async () => {
+  const result = await dialog.showOpenDialog({
+    title: "Open a text file",
+    properties: ["openFile"],
+    filters: [{ name: "Text", extensions: ["txt", "md", "log"] }],
+  });
+
+  if (result.canceled || result.filePaths.length === 0) return null;
+
+  const path = result.filePaths[0];
+  const content = await readFile(path, "utf8");
+
+  return { path, content };
 });
 
 let win: BrowserWindow | null = null;
