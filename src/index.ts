@@ -9,40 +9,53 @@ if (squirrelStartup) {
   app.quit();
 }
 
-function getWindowFromEvent(event: Electron.IpcMainInvokeEvent): BrowserWindow | null {
-  return BrowserWindow.fromWebContents(event.sender);
-}
-
-ipcMain.handle("app:getInfo", async () => {
-  return {
-    name: app.getName(),
-    version: app.getVersion(),
-    platform: process.platform,
-    arch: process.arch,
-  };
-});
-
-ipcMain.handle("win:minimize", async (event) => {
-  const win = getWindowFromEvent(event);
-  win?.minimize();
-});
-
-ipcMain.handle("win:toggleMaximize", async (event) => {
-  const win = getWindowFromEvent(event);
-  if (!win) return false;
-
-  if (win.isMaximized()) win.unmaximize();
-  else win.maximize();
-
-  return win.isMaximized();
-});
-
-ipcMain.handle("win:close", async (event) => {
-  const win = getWindowFromEvent(event);
-  win?.close();
-});
-
 let win: BrowserWindow | null = null;
+
+type TaskState = {
+  timer: NodeJS.Timeout;
+};
+
+const tasksBySenderId = new Map<number, TaskState>();
+
+ipcMain.handle("task:start", async (event) => {
+  const senderId = event.sender.id;
+  if (tasksBySenderId.has(senderId)) return false;
+
+  let percent = 0;
+  const tick = () => {
+    percent += 5;
+    const status = percent >= 100 ? "Finishing..." : "Downloading...";
+    event.sender.send("task:progress", { percent: Math.min(percent, 100), status });
+
+    if (percent >= 100) {
+      clearInterval(timer);
+      tasksBySenderId.delete(senderId);
+      event.sender.send("task:done", { status: "done" });
+    }
+  };
+
+  const timer = setInterval(tick, 250);
+  tasksBySenderId.set(senderId, { timer });
+  event.sender.on("destroyed", () => {
+    const t = tasksBySenderId.get(senderId);
+    if (!t) return;
+    clearInterval(t.timer);
+    tasksBySenderId.delete(senderId);
+  });
+
+  tick();
+  return true;
+});
+
+ipcMain.handle("task:cancel", async (event) => {
+  const senderId = event.sender.id;
+  const t = tasksBySenderId.get(senderId);
+  if (!t) return false;
+  clearInterval(t.timer);
+  tasksBySenderId.delete(senderId);
+  event.sender.send("task:done", { status: "canceled" });
+  return true;
+});
 
 function createWindow() {
   win = new BrowserWindow({

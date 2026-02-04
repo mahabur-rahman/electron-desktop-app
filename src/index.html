@@ -2,25 +2,22 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <title>Window Control Demo</title>
+    <title>Progress + Cancel (IPC)</title>
   </head>
   <body>
-    <h1>Window Control Demo</h1>
+    <h1>Progress + Cancel (IPC)</h1>
 
     <section>
-      <h2>App Info</h2>
-      <button id="refreshInfoBtn" type="button">Refresh info</button>
-      <pre id="appInfo"></pre>
-    </section>
-
-    <section>
-      <h2>Window Actions (via IPC)</h2>
+      <h2>Fake Download Task</h2>
       <div>
-        <button id="minimizeBtn" type="button">Minimize</button>
-        <button id="toggleMaxBtn" type="button">Toggle maximize</button>
-        <button id="closeBtn" type="button">Close</button>
+        <button id="startBtn" type="button">Start</button>
+        <button id="cancelBtn" type="button">Cancel</button>
       </div>
-      <p id="winStatus"></p>
+      <p>
+        <progress id="progressBar" value="0" max="100"></progress>
+        <span id="progressText">0%</span>
+      </p>
+      <p id="statusText">Idle</p>
     </section>
   </body>
 </html>

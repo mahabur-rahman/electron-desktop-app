@@ -1,15 +1,10 @@
 import "./index.css";
 
 type PreloadApi = {
-  getAppInfo: () => Promise<{
-    name: string;
-    version: string;
-    platform: string;
-    arch: string;
-  }>;
-  minimizeWindow: () => Promise<void>;
-  toggleMaximizeWindow: () => Promise<boolean>;
-  closeWindow: () => Promise<void>;
+  startTask: () => Promise<boolean>;
+  cancelTask: () => Promise<boolean>;
+  onTaskProgress: (cb: (p: { percent: number; status: string }) => void) => () => void;
+  onTaskDone: (cb: (p: { status: "done" | "canceled" }) => void) => () => void;
 };
 
 declare global {
@@ -19,71 +14,55 @@ declare global {
 }
 
 window.addEventListener("DOMContentLoaded", () => {
-  const refreshInfoBtn = document.getElementById(
-    "refreshInfoBtn",
-  ) as HTMLButtonElement | null;
-  const appInfo = document.getElementById("appInfo") as HTMLPreElement | null;
+  const startBtn = document.getElementById("startBtn") as HTMLButtonElement | null;
+  const cancelBtn = document.getElementById("cancelBtn") as HTMLButtonElement | null;
+  const progressBar = document.getElementById(
+    "progressBar",
+  ) as HTMLProgressElement | null;
+  const progressText = document.getElementById(
+    "progressText",
+  ) as HTMLSpanElement | null;
+  const statusText = document.getElementById(
+    "statusText",
+  ) as HTMLParagraphElement | null;
 
-  const minimizeBtn = document.getElementById(
-    "minimizeBtn",
-  ) as HTMLButtonElement | null;
-  const toggleMaxBtn = document.getElementById(
-    "toggleMaxBtn",
-  ) as HTMLButtonElement | null;
-  const closeBtn = document.getElementById("closeBtn") as HTMLButtonElement | null;
-  const winStatus = document.getElementById("winStatus") as HTMLParagraphElement | null;
+  if (!startBtn || !cancelBtn || !progressBar || !progressText || !statusText) return;
 
-  if (
-    !refreshInfoBtn ||
-    !appInfo ||
-    !minimizeBtn ||
-    !toggleMaxBtn ||
-    !closeBtn ||
-    !winStatus
-  ) {
-    return;
-  }
+  const setProgress = (percent: number) => {
+    const safe = Math.max(0, Math.min(100, Math.round(percent)));
+    progressBar.value = safe;
+    progressText.textContent = `${safe}%`;
+  };
 
-  const refreshInfo = async () => {
-    appInfo.textContent = "Loading...";
-    try {
-      const info = await window.api.getAppInfo();
-      appInfo.textContent = JSON.stringify(info, null, 2);
-    } catch {
-      appInfo.textContent = "Failed to load app info. Restart `npm run start`.";
+  setProgress(0);
+
+  let unsubscribeProgress: (() => void) | null = null;
+  let unsubscribeDone: (() => void) | null = null;
+
+  const ensureSubscriptions = () => {
+    if (!unsubscribeProgress) {
+      unsubscribeProgress = window.api.onTaskProgress((p) => {
+        setProgress(p.percent);
+        statusText.textContent = p.status;
+      });
+    }
+    if (!unsubscribeDone) {
+      unsubscribeDone = window.api.onTaskDone((p) => {
+        statusText.textContent = p.status === "done" ? "Done!" : "Canceled.";
+      });
     }
   };
 
-  refreshInfoBtn.addEventListener("click", () => void refreshInfo());
-
-  minimizeBtn.addEventListener("click", async () => {
-    winStatus.textContent = "Minimizing...";
-    try {
-      await window.api.minimizeWindow();
-      winStatus.textContent = "Minimized.";
-    } catch {
-      winStatus.textContent = "Failed to minimize.";
-    }
+  startBtn.addEventListener("click", async () => {
+    ensureSubscriptions();
+    statusText.textContent = "Starting...";
+    const ok = await window.api.startTask();
+    if (!ok) statusText.textContent = "Already running.";
   });
 
-  toggleMaxBtn.addEventListener("click", async () => {
-    winStatus.textContent = "Toggling...";
-    try {
-      const isMax = await window.api.toggleMaximizeWindow();
-      winStatus.textContent = isMax ? "Maximized." : "Unmaximized.";
-    } catch {
-      winStatus.textContent = "Failed to toggle maximize.";
-    }
+  cancelBtn.addEventListener("click", async () => {
+    statusText.textContent = "Canceling...";
+    const ok = await window.api.cancelTask();
+    if (!ok) statusText.textContent = "Nothing to cancel.";
   });
-
-  closeBtn.addEventListener("click", async () => {
-    winStatus.textContent = "Closing...";
-    try {
-      await window.api.closeWindow();
-    } catch {
-      winStatus.textContent = "Failed to close.";
-    }
-  });
-
-  void refreshInfo();
 });

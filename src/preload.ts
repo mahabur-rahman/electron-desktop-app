@@ -1,22 +1,27 @@
 import { contextBridge, ipcRenderer } from "electron";
 
 export type PreloadApi = {
-  getAppInfo: () => Promise<{
-    name: string;
-    version: string;
-    platform: string;
-    arch: string;
-  }>;
-  minimizeWindow: () => Promise<void>;
-  toggleMaximizeWindow: () => Promise<boolean>;
-  closeWindow: () => Promise<void>;
+  startTask: () => Promise<boolean>;
+  cancelTask: () => Promise<boolean>;
+  onTaskProgress: (cb: (p: { percent: number; status: string }) => void) => () => void;
+  onTaskDone: (cb: (p: { status: "done" | "canceled" }) => void) => () => void;
 };
 
 const api: PreloadApi = {
-  getAppInfo: () => ipcRenderer.invoke("app:getInfo"),
-  minimizeWindow: () => ipcRenderer.invoke("win:minimize"),
-  toggleMaximizeWindow: () => ipcRenderer.invoke("win:toggleMaximize"),
-  closeWindow: () => ipcRenderer.invoke("win:close"),
+  startTask: () => ipcRenderer.invoke("task:start"),
+  cancelTask: () => ipcRenderer.invoke("task:cancel"),
+  onTaskProgress: (cb) => {
+    const listener = (_event: unknown, payload: { percent: number; status: string }) =>
+      cb(payload);
+    ipcRenderer.on("task:progress", listener);
+    return () => ipcRenderer.removeListener("task:progress", listener);
+  },
+  onTaskDone: (cb) => {
+    const listener = (_event: unknown, payload: { status: "done" | "canceled" }) =>
+      cb(payload);
+    ipcRenderer.on("task:done", listener);
+    return () => ipcRenderer.removeListener("task:done", listener);
+  },
 };
 
 contextBridge.exposeInMainWorld("api", api);
