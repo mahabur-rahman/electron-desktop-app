@@ -1,20 +1,22 @@
 import { contextBridge, ipcRenderer } from "electron";
 
-export type NoteData = {
-  text: string;
-  updatedAtIso: string;
-};
-
 export type PreloadApi = {
-  openExternal: (url: string) => Promise<boolean>;
-  saveNote: (text: string) => Promise<boolean>;
-  loadNote: () => Promise<NoteData | null>;
+  getAppInfo: () => Promise<{
+    name: string;
+    version: string;
+    platform: string;
+    arch: string;
+  }>;
+  minimizeWindow: () => Promise<void>;
+  toggleMaximizeWindow: () => Promise<boolean>;
+  closeWindow: () => Promise<void>;
 };
 
 const api: PreloadApi = {
-  openExternal: (url) => ipcRenderer.invoke("shell:openExternal", url),
-  saveNote: (text) => ipcRenderer.invoke("note:save", text),
-  loadNote: () => ipcRenderer.invoke("note:load"),
+  getAppInfo: () => ipcRenderer.invoke("app:getInfo"),
+  minimizeWindow: () => ipcRenderer.invoke("win:minimize"),
+  toggleMaximizeWindow: () => ipcRenderer.invoke("win:toggleMaximize"),
+  closeWindow: () => ipcRenderer.invoke("win:close"),
 };
 
 contextBridge.exposeInMainWorld("api", api);

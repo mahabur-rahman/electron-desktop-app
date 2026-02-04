@@ -1,6 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell } from "electron";
-import { readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
+import { app, BrowserWindow, ipcMain } from "electron";
 import isDev from "electron-is-dev";
 import squirrelStartup from "electron-squirrel-startup";
 
@@ -11,60 +9,37 @@ if (squirrelStartup) {
   app.quit();
 }
 
-function isAllowedExternalUrl(raw: string): boolean {
-  try {
-    const u = new URL(raw);
-    return u.protocol === "http:" || u.protocol === "https:";
-  } catch {
-    return false;
-  }
+function getWindowFromEvent(event: Electron.IpcMainInvokeEvent): BrowserWindow | null {
+  return BrowserWindow.fromWebContents(event.sender);
 }
 
-async function safeOpenExternal(raw: string): Promise<boolean> {
-  if (!isAllowedExternalUrl(raw)) return false;
-
-  try {
-    await shell.openExternal(raw);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-async function getNoteFilePath(): Promise<string> {
-  await app.whenReady();
-  return path.join(app.getPath("userData"), "note.json");
-}
-
-ipcMain.handle("shell:openExternal", async (_event, url: string) => {
-  return safeOpenExternal(url);
+ipcMain.handle("app:getInfo", async () => {
+  return {
+    name: app.getName(),
+    version: app.getVersion(),
+    platform: process.platform,
+    arch: process.arch,
+  };
 });
 
-ipcMain.handle("note:save", async (_event, text: string) => {
-  try {
-    const notePath = await getNoteFilePath();
-    const data = {
-      text,
-      updatedAtIso: new Date().toISOString(),
-    };
-    await writeFile(notePath, JSON.stringify(data, null, 2), "utf8");
-    return true;
-  } catch {
-    return false;
-  }
+ipcMain.handle("win:minimize", async (event) => {
+  const win = getWindowFromEvent(event);
+  win?.minimize();
 });
 
-ipcMain.handle("note:load", async () => {
-  try {
-    const notePath = await getNoteFilePath();
-    const raw = await readFile(notePath, "utf8");
-    const parsed = JSON.parse(raw) as { text: string; updatedAtIso: string };
-    if (typeof parsed.text !== "string" || typeof parsed.updatedAtIso !== "string")
-      return null;
-    return parsed;
-  } catch {
-    return null;
-  }
+ipcMain.handle("win:toggleMaximize", async (event) => {
+  const win = getWindowFromEvent(event);
+  if (!win) return false;
+
+  if (win.isMaximized()) win.unmaximize();
+  else win.maximize();
+
+  return win.isMaximized();
+});
+
+ipcMain.handle("win:close", async (event) => {
+  const win = getWindowFromEvent(event);
+  win?.close();
 });
 
 let win: BrowserWindow | null = null;
@@ -72,34 +47,12 @@ let win: BrowserWindow | null = null;
 function createWindow() {
   win = new BrowserWindow({
     width: 900,
-    height: 650,
+    height: 500,
     webPreferences: {
       preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY,
       contextIsolation: true,
       nodeIntegration: false,
     },
-  });
-
-  win.webContents.setWindowOpenHandler(({ url }) => {
-    void safeOpenExternal(url);
-    return { action: "deny" };
-  });
-
-  win.webContents.on("will-navigate", (event, url) => {
-    const current = win?.webContents.getURL();
-    if (!current) return;
-
-    try {
-      const targetOrigin = new URL(url).origin;
-      const currentOrigin = new URL(current).origin;
-
-      if (targetOrigin !== currentOrigin) {
-        event.preventDefault();
-        void safeOpenExternal(url);
-      }
-    } catch {
-      event.preventDefault();
-    }
   });
 
   win.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
